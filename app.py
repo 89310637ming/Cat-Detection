@@ -11,12 +11,12 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.route("/detect_cat", methods=["POST"])
 def detect_cat():
-    # ─── 1. receive raw JPEG from request body ───────────────────────
+    # gets the raw jpeg image
     img_bytes = request.data
     if not img_bytes:
         return jsonify({"error": "No image uploaded"}), 400
 
-    # optional: save a copy so you can inspect later
+    # saving a copy to view the image later
     ts = time.strftime("%Y%m%d_%H%M%S")
     fname = f"{ts}_cam.jpg"
     path  = os.path.join(UPLOAD_DIR, fname)
@@ -24,7 +24,7 @@ def detect_cat():
         f.write(img_bytes)
     print(f"⇢ saved {path}  ({os.path.getsize(path)} bytes)")
 
-    # ─── 2. run YOLOv8 ────────────────────────────────────────────────
+    # run YOLOv8
     img = Image.open(io.BytesIO(img_bytes))
     results = model.predict(img, verbose=False)
 
@@ -35,7 +35,7 @@ def detect_cat():
     )
     print("  YOLO says cat =", cat)
 
-    # ─── 3. respond to ESP32 ──────────────────────────────────────────
+    # Sent a response back to ESP32
     return jsonify({
         "cat_detected": bool(cat),
         "file": fname
