@@ -4,13 +4,14 @@
     <meta charset="UTF-8">
     <title>Cat Rescue Station Dashboard</title>
     <link rel="stylesheet" href="/static/style.css">
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> <!-- Add Plotly -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> <!-- Important: load Plotly -->
 </head>
+
 <body>
     <div class="container">
         <h1>🐱 Mobile Stray Cat Rescue Station</h1>
 
-        <!-- Status Section -->
+        <!-- Status Info -->
         <div class="status-grid">
             <div class="status-card">
                 <h2>Battery Level 🔋</h2>
@@ -34,16 +35,59 @@
         <h2>🔋 Battery Level Over Time</h2>
         <div id="batteryGraph" class="graph"></div>
 
-        <!-- Image Gallery Section -->
+        <!-- Images -->
         <h2>📸 Images Received</h2>
         <div id="gallery" class="gallery-grid"></div>
     </div>
 
+    <!-- Dashboard Script -->
     <script>
         let batteryData = [];
         let timestamps = [];
+        let initialized = false;
+
+        async function fetchHistory() {
+            try {
+                const response = await fetch('/history');
+                const history = await response.json();
+
+                batteryData = [];
+                timestamps = [];
+
+                if (Array.isArray(history) && history.length > 0) {
+                    history.forEach(entry => {
+                        timestamps.push(entry.timestamp); // 🟰 correct field
+                        batteryData.push(parseFloat(entry.battery_level)); // 🟰 correct field
+                    });
+                }
+
+                await Plotly.newPlot('batteryGraph', [{
+                    x: timestamps,
+                    y: batteryData,
+                    mode: 'lines+markers',
+                    line: { color: '#1f77b4' }
+                }], {
+                    title: 'Battery Level (%) vs Time',
+                    xaxis: {
+                        title: 'Time',
+                        type: 'date',
+                        tickformat: "%H:%M:%S" // format nicely
+                    },
+                    yaxis: {
+                        title: 'Battery Level (%)',
+                        range: [0, 100]
+                    }
+                });
+
+                initialized = true;
+            } catch (error) {
+                console.error("Error fetching history:", error);
+            }
+        }
 
         async function fetchStatus() {
+            if (!initialized) return;
+
             const response = await fetch('/status');
             const data = await response.json();
             document.getElementById('battery').innerText = `${data.battery_level}%`;
@@ -51,9 +95,8 @@
             document.getElementById('heating').innerText = data.heating_pad_on ? "On" : "Off";
             document.getElementById('temperature').innerText = `${data.temperature}°C`;
 
-            // Update data for the graph
             timestamps.push(data.timestamp);
-            batteryData.push(data.battery_level);
+            batteryData.push(parseFloat(data.battery_level));
 
             Plotly.update('batteryGraph', {
                 x: [timestamps],
@@ -82,20 +125,13 @@
             await fetchImages();
         }
 
-        // Initialize empty graph
-        Plotly.newPlot('batteryGraph', [{
-            x: [],
-            y: [],
-            mode: 'lines+markers',
-            line: { color: '#1f77b4' }
-        }], {
-            title: 'Battery Level (%) vs Time',
-            xaxis: { title: 'Time' },
-            yaxis: { title: 'Battery Level (%)', range: [0, 100] }
-        });
+        async function initializeDashboard() {
+            await fetchHistory();
+            await fetchImages();
+            setInterval(refreshDashboard, 1000); // refresh every 10 sec
+        }
 
-        refreshDashboard();
-        setInterval(refreshDashboard, 5000); // refresh every 5s
+        initializeDashboard();
     </script>
 </body>
 </html>
