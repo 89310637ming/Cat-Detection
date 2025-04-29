@@ -1,8 +1,11 @@
 <script>
     let batteryData = [];
     let timestamps = [];
+    let dashboardInitialized = false;
 
     async function fetchStatus() {
+        if (!dashboardInitialized) return;  // Don't update if dashboard not ready
+
         const response = await fetch('/status');
         const data = await response.json();
         document.getElementById('battery').innerText = `${data.battery_level}%`;
@@ -10,9 +13,8 @@
         document.getElementById('heating').innerText = data.heating_pad_on ? "On" : "Off";
         document.getElementById('temperature').innerText = `${data.temperature}°C`;
 
-        // Add new live data point
         timestamps.push(data.timestamp);
-        batteryData.push(data.battery_level);
+        batteryData.push(parseFloat(data.battery_level));
 
         Plotly.update('batteryGraph', {
             x: [timestamps],
@@ -24,17 +26,14 @@
         const response = await fetch('/history');
         const history = await response.json();
 
-        // Reset existing data
         batteryData = [];
         timestamps = [];
 
-        // Fill in from history
         history.forEach(entry => {
             timestamps.push(entry.timestamp);
             batteryData.push(parseFloat(entry.battery_level));
         });
 
-        // Plot initial graph
         Plotly.newPlot('batteryGraph', [{
             x: timestamps,
             y: batteryData,
@@ -45,6 +44,8 @@
             xaxis: { title: 'Time' },
             yaxis: { title: 'Battery Level (%)', range: [0, 100] }
         });
+
+        dashboardInitialized = true;  // Now ready to start updating
     }
 
     async function fetchImages() {
@@ -71,8 +72,8 @@
     async function initializeDashboard() {
         await fetchHistory();
         await fetchImages();
+        setInterval(refreshDashboard, 10000); // Start refreshing only AFTER ready
     }
 
-    initializeDashboard(); // load old history first
-    setInterval(refreshDashboard, 5000); // refresh live every 10 sec
+    initializeDashboard();  // Run this first
 </script>
