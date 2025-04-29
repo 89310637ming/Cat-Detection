@@ -28,17 +28,29 @@ def index():
 
 @app.route("/detect_cat", methods=["POST"])
 def detect_cat():
-    img_bytes = request.data
+    img_bytes = request.data          # raw JPEG coming from ESP32
     if not img_bytes:
         return jsonify({"error": "No image uploaded"}), 400
 
-    ts = time.strftime("%Y%m%d_%H%M%S")
-    fname = f"{ts}_cam.jpg"
-    path = os.path.join(UPLOAD_DIR, fname)
+    # save the file so we can view / download it
+    ts     = time.strftime("%Y%m%d_%H%M%S")
+    fname  = f"{ts}_cam.jpg"
+    path   = os.path.join(UPLOAD_DIR, fname)
     with open(path, "wb") as f:
         f.write(img_bytes)
+    print(f"⇢ saved {path} ({os.path.getsize(path)} bytes)")
 
-    return jsonify({"message": "Image uploaded successfully", "file": fname}), 200
+    # run YOLO
+    img      = Image.open(io.BytesIO(img_bytes))
+    results  = model.predict(img, verbose=False)
+    cat      = any(model.names[int(b.cls[0])] == "cat"
+                   for r in results for b in r.boxes)
+    print("YOLO says cat =", cat)
+
+    return jsonify({
+        "cat_detected": bool(cat),
+        "file": fname          # useful for the ESP32 or UI
+    }), 200
 
 @app.route("/update_status", methods=["POST"])
 def update_status():
