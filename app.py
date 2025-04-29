@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify, send_from_directory, render_template
-import os
 import csv
-import time
 from status import BatteryManager
+from PIL  import Image
+import io, time, os
+from ultralytics import YOLO
 
 # ───────────────────────────────────────────────────────────────
 UPLOAD_DIR = "uploads"
