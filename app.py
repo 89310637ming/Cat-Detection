@@ -1,22 +1,27 @@
 from flask import Flask, request, jsonify, send_from_directory, render_template
-from status import BatteryManager
 import os
 import csv
+import time
+from status import BatteryManager
 
+# ───────────────────────────────────────────────────────────────
 UPLOAD_DIR = "uploads"
 STATUS_FILE = "status_history.csv"
+FIELDNAMES = ["timestamp", "battery_level", "battery_voltage", "solar_panel_on", "heating_pad_on", "temperature"]
 
+# ───────────────────────────────────────────────────────────────
 app = Flask(__name__)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 battery_manager = BatteryManager()
 
-# Initialize CSV if needed
+# Initialize CSV if missing
 if not os.path.exists(STATUS_FILE):
     with open(STATUS_FILE, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=["timestamp", "battery_level", "battery_voltage", "solar_panel_on", "heating_pad_on", "temperature"])
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
 
+# ───────────────────────────────────────────────────────────────
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -41,7 +46,7 @@ def update_status():
     if not data:
         return jsonify({"error": "No JSON received"}), 400
 
-    # Update the internal state
+    # Update battery manager
     battery_manager.update(
         battery_level=data.get("battery_level"),
         solar_panel_on=data.get("solar_panel_on"),
@@ -49,17 +54,25 @@ def update_status():
         temperature=data.get("temperature")
     )
 
-    # Save new status to CSV
+    # Save new status into CSV manually ordered
     status = battery_manager.get_status()
+    row = {
+        "timestamp": status["timestamp"],
+        "battery_level": status["battery_level"],
+        "battery_voltage": status["battery_voltage"],
+        "solar_panel_on": status["solar_panel_on"],
+        "heating_pad_on": status["heating_pad_on"],
+        "temperature": status["temperature"]
+    }
+
     with open(STATUS_FILE, 'a', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=status.keys())
-        writer.writerow(status)
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writerow(row)
 
     return jsonify({"message": "Status updated"}), 200
 
 @app.route("/status", methods=["GET"])
 def get_status():
-    # Just return the latest info
     return jsonify(battery_manager.get_status())
 
 @app.route("/history", methods=["GET"])
@@ -81,5 +94,6 @@ def list_images():
     files = sorted(os.listdir(UPLOAD_DIR), reverse=True)
     return jsonify(files)
 
+# ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)
