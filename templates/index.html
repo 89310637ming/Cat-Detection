@@ -1,86 +1,101 @@
-<script>
-    let batteryData = [];
-    let timestamps = [];
-    let dashboardInitialized = false;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cat Rescue Station Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> <!-- Add Plotly -->
+</head>
+<body>
+    <div class="container">
+        <h1>🐱 Mobile Stray Cat Rescue Station</h1>
 
-    async function fetchStatus() {
-        if (!dashboardInitialized) return;
+        <!-- Status Section -->
+        <div class="status-grid">
+            <div class="status-card">
+                <h2>Battery Level 🔋</h2>
+                <p id="battery">--%</p>
+            </div>
+            <div class="status-card">
+                <h2>Solar Panel ☀️</h2>
+                <p id="solar">--</p>
+            </div>
+            <div class="status-card">
+                <h2>Heating Pad 🔥</h2>
+                <p id="heating">--</p>
+            </div>
+            <div class="status-card">
+                <h2>Temperature 🌡️</h2>
+                <p id="temperature">--°C</p>
+            </div>
+        </div>
 
-        const response = await fetch('/status');
-        const data = await response.json();
-        document.getElementById('battery').innerText = `${data.battery_level}%`;
-        document.getElementById('solar').innerText = data.solar_panel_on ? "On" : "Off";
-        document.getElementById('heating').innerText = data.heating_pad_on ? "On" : "Off";
-        document.getElementById('temperature').innerText = `${data.temperature}°C`;
+        <!-- Battery Graph -->
+        <h2>🔋 Battery Level Over Time</h2>
+        <div id="batteryGraph" class="graph"></div>
 
-        timestamps.push(data.timestamp);
-        batteryData.push(parseFloat(data.battery_level));
+        <!-- Image Gallery Section -->
+        <h2>📸 Images Received</h2>
+        <div id="gallery" class="gallery-grid"></div>
+    </div>
 
-        Plotly.update('batteryGraph', {
-            x: [timestamps],
-            y: [batteryData]
-        });
-    }
+    <script>
+        let batteryData = [];
+        let timestamps = [];
 
-    async function fetchHistory() {
-        try {
-            const response = await fetch('/history');
-            const history = await response.json();
+        async function fetchStatus() {
+            const response = await fetch('/status');
+            const data = await response.json();
+            document.getElementById('battery').innerText = `${data.battery_level}%`;
+            document.getElementById('solar').innerText = data.solar_panel_on ? "On" : "Off";
+            document.getElementById('heating').innerText = data.heating_pad_on ? "On" : "Off";
+            document.getElementById('temperature').innerText = `${data.temperature}°C`;
 
-            batteryData = [];
-            timestamps = [];
+            // Update data for the graph
+            timestamps.push(data.timestamp);
+            batteryData.push(data.battery_level);
 
-            if (Array.isArray(history) && history.length > 0) {
-                history.forEach(entry => {
-                    timestamps.push(entry.timestamp);
-                    batteryData.push(parseFloat(entry.battery_level));
-                });
-            }
-
-            // Always initialize an empty or full plot
-            await Plotly.newPlot('batteryGraph', [{
-                x: timestamps,
-                y: batteryData,
-                mode: 'lines+markers',
-                line: { color: '#1f77b4' }
-            }], {
-                title: 'Battery Level (%) vs Time',
-                xaxis: { title: 'Time' },
-                yaxis: { title: 'Battery Level (%)', range: [0, 100] }
+            Plotly.update('batteryGraph', {
+                x: [timestamps],
+                y: [batteryData]
             });
-
-            dashboardInitialized = true;  // Now ready to start refreshing
-        } catch (error) {
-            console.error("Failed to load history:", error);
         }
-    }
 
-    async function fetchImages() {
-        const response = await fetch('/list_images');
-        const files = await response.json();
-        const gallery = document.getElementById('gallery');
-        gallery.innerHTML = "";
-        for (const file of files) {
-            const imgCard = document.createElement('div');
-            imgCard.className = 'img-card';
-            imgCard.innerHTML = `
-                <img src="/img/${file}" alt="${file}">
-                <p>${file}</p>
-            `;
-            gallery.appendChild(imgCard);
+        async function fetchImages() {
+            const response = await fetch('/list_images');
+            const files = await response.json();
+            const gallery = document.getElementById('gallery');
+            gallery.innerHTML = "";
+            for (const file of files) {
+                const imgCard = document.createElement('div');
+                imgCard.className = 'img-card';
+                imgCard.innerHTML = `
+                    <img src="/img/${file}" alt="${file}">
+                    <p>${file}</p>
+                `;
+                gallery.appendChild(imgCard);
+            }
         }
-    }
 
-    async function refreshDashboard() {
-        await fetchStatus();
-        await fetchImages();
-    }
+        async function refreshDashboard() {
+            await fetchStatus();
+            await fetchImages();
+        }
 
-    async function initializeDashboard() {
-        await fetchHistory();   // Fetch history FIRST safely
-        await fetchImages();
-        setInterval(refreshDashboard, 10000); // Start refreshing only AFTER successful plotting
-    }
+        // Initialize empty graph
+        Plotly.newPlot('batteryGraph', [{
+            x: [],
+            y: [],
+            mode: 'lines+markers',
+            line: { color: '#1f77b4' }
+        }], {
+            title: 'Battery Level (%) vs Time',
+            xaxis: { title: 'Time' },
+            yaxis: { title: 'Battery Level (%)', range: [0, 100] }
+        });
 
-    initializeDashboard();
-</script>
+        refreshDashboard();
+        setInterval(refreshDashboard, 5000); // refresh every 5s
+    </script>
+</body>
+</html>
