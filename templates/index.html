@@ -4,7 +4,7 @@
     let dashboardInitialized = false;
 
     async function fetchStatus() {
-        if (!dashboardInitialized) return;  // Don't update if dashboard not ready
+        if (!dashboardInitialized) return;
 
         const response = await fetch('/status');
         const data = await response.json();
@@ -23,29 +23,36 @@
     }
 
     async function fetchHistory() {
-        const response = await fetch('/history');
-        const history = await response.json();
+        try {
+            const response = await fetch('/history');
+            const history = await response.json();
 
-        batteryData = [];
-        timestamps = [];
+            batteryData = [];
+            timestamps = [];
 
-        history.forEach(entry => {
-            timestamps.push(entry.timestamp);
-            batteryData.push(parseFloat(entry.battery_level));
-        });
+            if (Array.isArray(history) && history.length > 0) {
+                history.forEach(entry => {
+                    timestamps.push(entry.timestamp);
+                    batteryData.push(parseFloat(entry.battery_level));
+                });
+            }
 
-        Plotly.newPlot('batteryGraph', [{
-            x: timestamps,
-            y: batteryData,
-            mode: 'lines+markers',
-            line: { color: '#1f77b4' }
-        }], {
-            title: 'Battery Level (%) vs Time',
-            xaxis: { title: 'Time' },
-            yaxis: { title: 'Battery Level (%)', range: [0, 100] }
-        });
+            // Always initialize an empty or full plot
+            await Plotly.newPlot('batteryGraph', [{
+                x: timestamps,
+                y: batteryData,
+                mode: 'lines+markers',
+                line: { color: '#1f77b4' }
+            }], {
+                title: 'Battery Level (%) vs Time',
+                xaxis: { title: 'Time' },
+                yaxis: { title: 'Battery Level (%)', range: [0, 100] }
+            });
 
-        dashboardInitialized = true;  // Now ready to start updating
+            dashboardInitialized = true;  // Now ready to start refreshing
+        } catch (error) {
+            console.error("Failed to load history:", error);
+        }
     }
 
     async function fetchImages() {
@@ -70,10 +77,10 @@
     }
 
     async function initializeDashboard() {
-        await fetchHistory();
+        await fetchHistory();   // Fetch history FIRST safely
         await fetchImages();
-        setInterval(refreshDashboard, 10000); // Start refreshing only AFTER ready
+        setInterval(refreshDashboard, 10000); // Start refreshing only AFTER successful plotting
     }
 
-    initializeDashboard();  // Run this first
+    initializeDashboard();
 </script>
