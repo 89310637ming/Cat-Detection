@@ -9,10 +9,11 @@ from ultralytics import YOLO
 UPLOAD_DIR = "uploads"
 STATUS_FILE = "status_history.csv"
 FIELDNAMES = ["timestamp", "battery_level", "battery_voltage", "solar_panel_on", "heating_pad_on", "temperature"]
-
+MODEL_PATH = "yolov8n.pt"
 # ───────────────────────────────────────────────────────────────
 app = Flask(__name__)
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+model = YOLO(MODEL_PATH)
 
 battery_manager = BatteryManager()
 
