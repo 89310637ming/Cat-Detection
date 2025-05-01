@@ -62,10 +62,10 @@ def update_status():
 
     # Update battery manager
     battery_manager.update(
-        battery_level=data.get("battery_level"),
-        solar_panel_on=data.get("solar_panel_on"),
-        heating_pad_on=data.get("heating_pad_on"),
-        temperature=data.get("temperature")
+        data.get("battery_level"),
+        data.get("solar_panel_on"),
+        data.get("heating_pad_on"),
+        data.get("temperature")
     )
 
     # Save new status into CSV manually ordered
